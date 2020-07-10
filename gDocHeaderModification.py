@@ -8,27 +8,36 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # WARNING IF USED INCORRECTLY THIS CAN DELETE ALL THE HEADERS IN A FOLDER
-AddingHeader = False
-RemovingHeader = True
+# For adding set to True for Removing set to False
+AddingHeader = True
 
-message = "Looking for COVID support and guidance? Visit our COVID Contingency Materials Summary Page."
-finalMessageString = "Materials Summary Page"
+message = "Looking for COVID support and guidance? Visit our COVID Contingency Materials Summary Page.\n"
 urlLink = 'https://elearningyork.wordpress.com/2020/03/13/transferring-face-to-face-teaching-to-online/'
 messageLength = len(message)
 
 def changeHeader(item):
     headerLocation = docService.documents().get(documentId=item['id'],fields ='headers').execute()
     headerId = list(headerLocation.get('headers'))[0]
-    finalSection = len(list(list(headerLocation['headers'][headerId]['content'])[0]['paragraph']['elements'])) - 1
-    endIndex = list(list(headerLocation['headers'][headerId]['content'])[0]['paragraph']['elements'])[finalSection]['endIndex'] - 1
-    if(finalSection != 1):
-        textContent = list(list(headerLocation['headers'][headerId]['content'])[0]['paragraph']['elements'])[finalSection - 1]['textRun']['content']
-    if(finalSection <= 1):
-        textContent = list(list(headerLocation['headers'][headerId]['content'])[0]['paragraph']['elements'])[finalSection]['textRun']['content']
+    contentLength = len(list(list(headerLocation['headers'][headerId]['content'])))
+    finalSection = len(list(list(headerLocation['headers'][headerId]['content'])[contentLength - 1]['paragraph']['elements'])) - 1
+    endIndex = list(list(headerLocation['headers'][headerId]['content'])[contentLength - 1]['paragraph']['elements'])[finalSection]['endIndex'] - 1
+
+    textContent = []
+    for contentInt in range(contentLength):
+        for section in range(finalSection + 1):
+            try:
+                sectionText = list(headerLocation['headers'][headerId]['content'][contentInt]['paragraph']['elements'])[section]['textRun']['content']
+                textContent.append(sectionText)
+            except:
+                True
+    headerText = "".join(textContent)
+    print("Header Text: " + headerText)
+
     messageInHeader = False
 
-    if( textContent.find(finalMessageString) != -1):
+    if(headerText.find(message) != -1):
         print("Message Found!")
+        print(headerText.find(message))
         messageInHeader = True
 
 
@@ -48,7 +57,7 @@ def changeHeader(item):
                     'range': {
                         'segmentId': headerId,
                         'startIndex': endIndex,
-                        'endIndex': 39 + endIndex
+                        'endIndex': 40 + endIndex
                     },
                 'textStyle': {
                     'foregroundColor': {
@@ -69,7 +78,7 @@ def changeHeader(item):
             'updateTextStyle': {
                 'range': {
                     'segmentId': headerId,
-                    'startIndex': 46 + 1,
+                    'startIndex': 47 + 1,
                     'endIndex': messageLength + endIndex
                 },
                 'textStyle': {
@@ -81,7 +90,7 @@ def changeHeader(item):
             }
         }]
         result = docService.documents().batchUpdate(documentId=item['id'], body={'requests': requests}).execute()
-    if(RemovingHeader and messageInHeader):
+    if(AddingHeader == False and messageInHeader):
         requests = [
         {
             'deleteContentRange': {
@@ -97,6 +106,128 @@ def changeHeader(item):
     ]
         result = docService.documents().batchUpdate(documentId=item['id'], body={'requests': requests}).execute()
 
+def updateTopOfPage(item):
+    fileLocation = docService.documents().get(documentId=item['id']).execute()
+    endIndex = 1
+
+
+    # textContent = []
+    # for contentInt in range(contentLength):
+    #     for section in range(finalSection + 1):
+    #         try:
+    #             sectionText = \
+    #             list(headerLocation['headers'][headerId]['content'][contentInt]['paragraph']['elements'])[section][
+    #                 'textRun']['content']
+    #             textContent.append(sectionText)
+    #         except:
+    #             True
+    # headerText = "".join(textContent)
+    # print("Header Text: " + headerText)
+
+
+
+    # if (headerText.find(message) != -1):
+    #     print("Message Found!")
+    #     print(headerText.find(message))
+    #     messageInBody = True
+
+    if (AddingHeader):
+        requests = [
+            {
+                'insertText': {
+                    'location': {
+                        'index': endIndex,
+                    },
+                    'text': message
+                }
+            },
+            {
+                'updateParagraphStyle': {
+                    'range': {
+                        'startIndex': endIndex,
+                        'endIndex': messageLength + endIndex
+                    },
+                    'paragraphStyle': {
+                        'namedStyleType': 'NORMAL_TEXT',
+                        'alignment':'CENTER'
+                    },
+                    'fields': 'namedStyleType,alignment'
+                },
+            },
+            {
+                'updateTextStyle': {
+                    'range': {
+                        'startIndex': endIndex,
+                        'endIndex': messageLength + endIndex
+                    },
+                    'textStyle': {
+                        'fontSize': {
+                              "magnitude": 9,
+                              "unit": "PT"
+                            }
+                    },
+                    'fields': 'fontSize'
+                },
+            },
+            {
+                'updateTextStyle': {
+                    'range': {
+                        'startIndex': endIndex,
+                        'endIndex': 39 + endIndex
+                    },
+                    'textStyle': {
+                        'foregroundColor': {
+                            'color': {
+                                'rgbColor': {
+                                    'blue': 0.0,
+                                    'green': 0.0,
+                                    'red': 1.0
+                                }
+                            }
+                        },
+                        'bold': True,
+                    },
+                    'fields': 'foregroundColor,bold'
+                }
+            },
+            {
+                'updateTextStyle': {
+                    'range': {
+                        'startIndex': 46 + 1,
+                        'endIndex': messageLength + endIndex
+                    },
+                    'textStyle': {
+                        'link': {
+                            'url': urlLink
+                        }
+                    },
+                    'fields': 'link'
+                }
+            }]
+        result = docService.documents().batchUpdate(documentId=item['id'], body={'requests': requests}).execute()
+    if (AddingHeader == False):
+        requests = [
+            {
+                'replaceAllText': {
+                    'containsText': {
+                        'text': message,
+                        'matchCase': 'true'
+                    },
+                    'replaceText': "",
+                }
+            }
+            # {
+            #     'deleteContentRange': {
+            #         'range': {
+            #             'startIndex': endIndex ,
+            #             'endIndex': endIndex + messageLength,
+            #         }
+            #
+            #     }
+            #
+            # },
+        ]
+        result = docService.documents().batchUpdate(documentId=item['id'], body={'requests': requests}).execute()
 
 
 def createLink(id, mimeType):
@@ -135,10 +266,10 @@ def writeCSV(csv_writer, items,folderName):
         folderNameUpdate = '"' + folderName +'"'
         if(item['mimeType']!='application/vnd.google-apps.folder'):
             if(item['mimeType']=='application/vnd.google-apps.document'):
-                # try:
-                changeHeader(item)
-                # except:
-                #     print('Error!')
+                try:
+                    updateTopOfPage(item)
+                except:
+                    print('Error!')
 
             csv_writer.writerow(
                 {'page_title': pageTitle, 'type': mimeType, 'link': link, 'folder_name': folderNameUpdate})
@@ -152,7 +283,12 @@ def writeCSV(csv_writer, items,folderName):
                                            pageSize=1000,
                                            fields="nextPageToken, files(kind,id,name,mimeType,parents)").execute()
             newitems = newresults.get('files', [])
-            writeCSV(csv_writer,newitems,newfolderName)
+            print(newfolderName)
+            # print('Do you wish to process this folder?')
+            # processFolder = input()
+            processFolder = 'y'
+            if processFolder.lower() == 'y':
+                writeCSV(csv_writer,newitems,newfolderName)
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly','https://www.googleapis.com/auth/documents']
